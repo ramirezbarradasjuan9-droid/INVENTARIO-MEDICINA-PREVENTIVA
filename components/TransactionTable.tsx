@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, TransactionType } from '../types';
-import { Edit2, Search, Download, Trash2, Calendar } from 'lucide-react';
+import { Edit2, Search, Download, Trash2, Calendar, X } from 'lucide-react';
 import { exportToCSV } from '../services/inventoryService';
 
 interface TransactionTableProps {
@@ -48,6 +48,15 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, onEdi
       return matchesSearch && matchesType && matchesDate;
     });
   }, [transactions, searchTerm, filterType, startDate, endDate]);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterType('ALL');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  const hasActiveFilters = searchTerm !== '' || filterType !== 'ALL' || startDate !== '' || endDate !== '';
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -109,6 +118,18 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, onEdi
                </button>
             )}
           </div>
+
+          {/* Global Clear Filter Button */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="w-full md:w-auto px-4 py-2 text-sm text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-all flex items-center justify-center shadow-sm"
+              title="Restablecer todos los filtros"
+            >
+              <X size={16} className="mr-2" />
+              Limpiar Filtros
+            </button>
+          )}
         </div>
 
         <button

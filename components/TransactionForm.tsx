@@ -239,6 +239,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, i
             onClick={onCancel}
             className="px-6 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-lg mr-3 transition-colors font-medium"
           >
+            Volver
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-6 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-lg mr-3 transition-colors font-medium"
+          >
             Cancelar
           </button>
           <button

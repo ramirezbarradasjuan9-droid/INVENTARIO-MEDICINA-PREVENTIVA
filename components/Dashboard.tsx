@@ -41,13 +41,25 @@ const Dashboard: React.FC<DashboardProps> = ({ inventory }) => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
-          <div className={`p-3 rounded-full ${lowStockItems.length > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+        <div className={`p-6 rounded-xl shadow-sm border flex items-center space-x-4 transition-all duration-500 ${
+          lowStockItems.length > 0 
+            ? 'bg-red-50 border-red-500 ring-4 ring-red-500/20' 
+            : 'bg-white border-slate-200'
+        }`}>
+          <div className={`p-3 rounded-full ${
+            lowStockItems.length > 0 
+              ? 'bg-red-200 text-red-700 animate-bounce' 
+              : 'bg-green-100 text-green-600'
+          }`}>
             <AlertTriangle size={24} />
           </div>
           <div>
-            <p className="text-sm text-slate-500 font-medium">Alerta Stock Bajo</p>
-            <h3 className="text-2xl font-bold text-slate-800">{lowStockItems.length}</h3>
+            <p className={`text-sm font-medium ${lowStockItems.length > 0 ? 'text-red-700' : 'text-slate-500'}`}>
+              Alerta Stock Bajo
+            </p>
+            <h3 className={`text-2xl font-bold ${lowStockItems.length > 0 ? 'text-red-900' : 'text-slate-800'}`}>
+              {lowStockItems.length}
+            </h3>
           </div>
         </div>
       </div>

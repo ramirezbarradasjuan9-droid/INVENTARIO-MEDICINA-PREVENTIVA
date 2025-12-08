@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  getTransactions, 
+  subscribeToTransactions, 
   saveTransaction, 
   updateTransaction, 
   deleteTransaction, 
@@ -10,7 +10,7 @@ import { Transaction, InventoryItem } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import TransactionForm from './components/TransactionForm';
-import { LayoutDashboard, List, PlusCircle, Activity } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, Activity, Cloud, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'DASHBOARD' | 'HISTORY'>('DASHBOARD');
@@ -18,13 +18,17 @@ const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load data on mount
+  // Load data from Firebase on mount using real-time listener
   useEffect(() => {
-    const data = getTransactions();
-    // Sort by date descending
-    data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setTransactions(data);
+    const unsubscribe = subscribeToTransactions((data) => {
+      setTransactions(data);
+      setLoading(false);
+    });
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, []);
 
   // Recalculate inventory whenever transactions change
@@ -33,28 +37,39 @@ const App: React.FC = () => {
     setInventory(inv);
   }, [transactions]);
 
-  const handleCreateTransaction = (t: Transaction) => {
-    const updated = saveTransaction(t);
-    setTransactions(updated);
+  const handleCreateTransaction = async (t: Transaction) => {
+    // Optimistically close form, but wait for DB confirmation ideally
+    // With real-time listener, the UI will update automatically when DB updates
+    await saveTransaction(t);
     setShowForm(false);
   };
 
-  const handleUpdateTransaction = (t: Transaction) => {
-    const updated = updateTransaction(t);
-    setTransactions(updated);
+  const handleUpdateTransaction = async (t: Transaction) => {
+    await updateTransaction(t);
     setShowForm(false);
     setEditingTransaction(null);
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    const updated = deleteTransaction(id);
-    setTransactions(updated);
+  const handleDeleteTransaction = async (id: string) => {
+    await deleteTransaction(id);
   };
 
   const startEditing = (t: Transaction) => {
     setEditingTransaction(t);
     setShowForm(true);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-slate-700">Conectando con la Nube...</h2>
+          <p className="text-slate-500 text-sm">Cargando inventario en tiempo real</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex bg-slate-50">
@@ -96,9 +111,12 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
-          v1.0.0 - Dpto. Medicina Preventiva
+          <div className="flex items-center justify-center gap-1 mb-2 text-green-400">
+            <Cloud size={12} />
+            <span>Conectado a Nube</span>
+          </div>
+          v2.0.0 Cloud - Medicina Prev.
           <div className="mt-1 opacity-50">Ref: 736727518542</div>
-          <div className="opacity-50">ID: inventariomedprevhgsc</div>
         </div>
       </aside>
 
@@ -183,6 +201,7 @@ const App: React.FC = () => {
                   transactions={transactions} 
                   onEdit={startEditing}
                   onDelete={handleDeleteTransaction}
+                  // onDataReload is no longer needed as subscription handles it automatically
                 />
               </div>
             )}

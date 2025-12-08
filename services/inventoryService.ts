@@ -1,48 +1,81 @@
 import { Transaction, TransactionType, InventoryItem } from '../types';
-import { STORAGE_KEY } from '../constants';
+import { db } from './firebaseConfig';
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  onSnapshot, 
+  query, 
+  orderBy 
+} from 'firebase/firestore';
 
-// Simulating a database with LocalStorage
-export const getTransactions = (): Transaction[] => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+const COLLECTION_NAME = 'transactions';
+
+// --- CLOUD FIRESTORE FUNCTIONS ---
+
+// Subscribe to real-time updates from Firestore
+export const subscribeToTransactions = (callback: (transactions: Transaction[]) => void) => {
+  const q = query(collection(db, COLLECTION_NAME), orderBy('date', 'desc'));
+  
+  // onSnapshot sets up a listener that fires whenever the database changes
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const transactions: Transaction[] = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Transaction));
+    callback(transactions);
+  });
+
+  // Return the unsubscribe function to clean up the listener
+  return unsubscribe;
 };
 
-export const saveTransaction = (transaction: Transaction): Transaction[] => {
-  const current = getTransactions();
-  // Ensure strict normalization on save
-  const normalized: Transaction = {
-    ...transaction,
+// Add a new transaction to the cloud
+export const saveTransaction = async (transaction: Transaction): Promise<void> => {
+  // We remove the ID because Firestore generates it automatically
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id, ...data } = transaction;
+  
+  const normalizedData = {
+    ...data,
+    materialName: data.materialName,
+    batchNumber: data.batchNumber.trim().toUpperCase(),
+    originOrDestination: data.originOrDestination.trim().toUpperCase(),
+    subtype: data.subtype || null, // Firestore prefers null over undefined
+    observations: data.observations || null
+  };
+
+  await addDoc(collection(db, COLLECTION_NAME), normalizedData);
+};
+
+// Update an existing transaction in the cloud
+export const updateTransaction = async (transaction: Transaction): Promise<void> => {
+  if (!transaction.id) return;
+
+  const transactionRef = doc(db, COLLECTION_NAME, transaction.id);
+  
+  const normalizedData = {
+    date: transaction.date,
+    type: transaction.type,
     materialName: transaction.materialName,
     batchNumber: transaction.batchNumber.trim().toUpperCase(),
     originOrDestination: transaction.originOrDestination.trim().toUpperCase(),
-    subtype: transaction.subtype,
+    quantity: transaction.quantity,
+    subtype: transaction.subtype || null,
+    observations: transaction.observations || null
   };
-  
-  const updated = [normalized, ...current];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  return updated;
+
+  await updateDoc(transactionRef, normalizedData);
 };
 
-export const updateTransaction = (updatedTx: Transaction): Transaction[] => {
-  const current = getTransactions();
-  const index = current.findIndex(t => t.id === updatedTx.id);
-  if (index !== -1) {
-    current[index] = {
-      ...updatedTx,
-      batchNumber: updatedTx.batchNumber.trim().toUpperCase(),
-      originOrDestination: updatedTx.originOrDestination.trim().toUpperCase(),
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-  }
-  return current;
+// Delete a transaction from the cloud
+export const deleteTransaction = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, COLLECTION_NAME, id));
 };
 
-export const deleteTransaction = (id: string): Transaction[] => {
-  const current = getTransactions();
-  const updated = current.filter(t => t.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  return updated;
-};
+// --- UTILITY FUNCTIONS (Calculations run on the client) ---
 
 export const calculateInventory = (transactions: Transaction[]): InventoryItem[] => {
   const inventoryMap = new Map<string, { total: number, lastUpdate: string }>();
@@ -100,7 +133,7 @@ export const exportToCSV = (transactions: Transaction[]) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `inventario_export_${new Date().toISOString().split('T')[0]}.csv`);
+  link.setAttribute('download', `inventario_cloud_export_${new Date().toISOString().split('T')[0]}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

@@ -1,18 +1,21 @@
 import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
+// Configuración de Firebase para el proyecto: inventarioMPHGSC
 const firebaseConfig = {
-  apiKey: "AIzaSyDYMGJu0iaGTE1pNbjE-k8Z9s7rKLl3J6s",
-  authDomain: "inventariomedprevhgsc.firebaseapp.com",
-  projectId: "inventariomedprevhgsc",
-  storageBucket: "inventariomedprevhgsc.firebasestorage.app",
-  messagingSenderId: "736727518542",
-  appId: "1:736727518542:web:c2b337e034c820c9e9e21f"
+  apiKey: "AIzaSyAbJHxiK1G38zRz8Ti7EJyLesBxcdgmQDs",
+  authDomain: "inventariomphgsc.firebaseapp.com",
+  projectId: "inventariomphgsc",
+  storageBucket: "inventariomphgsc.firebasestorage.app",
+  messagingSenderId: "825147498372",
+  appId: "1:825147498372:web:ca2542ad7395b0d47847d1",
+  measurementId: "G-2RLNNK1MMY"
 };
 
-// Initialize Firebase
+// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Cloud Firestore and export it
+// Inicializar servicios
+export const analytics = getAnalytics(app);
 export const db = getFirestore(app);

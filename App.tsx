@@ -97,6 +97,8 @@ const App: React.FC = () => {
 
         <div className="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
           v1.0.0 - Dpto. Medicina Preventiva
+          <div className="mt-1 opacity-50">Ref: 736727518542</div>
+          <div className="opacity-50">ID: inventariomedprevhgsc</div>
         </div>
       </aside>
 
@@ -126,7 +128,7 @@ const App: React.FC = () => {
         {/* Top Bar for Desktop */}
         <header className="hidden md:flex justify-between items-center p-6 bg-white border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-800">
-            {view === 'DASHBOARD' ? 'Resumen de Inventario' : 'Historial de Movimientos'}
+            {view === 'DASHBOARD' ? 'Panel General' : 'Historial y Registros'}
           </h2>
           <button
             onClick={() => {

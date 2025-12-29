@@ -23,24 +23,26 @@ const App: React.FC = () => {
 
   // Load data from Firebase on mount using real-time listener
   useEffect(() => {
-    // Note: subscribeToTransactions implementation should ideally handle errors
-    // Since the current signature in inventoryService.ts might not have onError callback
-    // we assume it works or update inventoryService if needed.
-    // Based on previous context, we'll try to use a version that supports error handling if available
-    // or wrap it. For now, using the standard subscription.
-    
-    try {
-      const unsubscribe = subscribeToTransactions((data) => {
+    const unsubscribe = subscribeToTransactions(
+      (data) => {
         setTransactions(data);
         setLoading(false);
-      });
-      return () => unsubscribe();
-    } catch (err: any) {
-      console.error("Setup error:", err);
-      setLoading(false);
-      setError(err.message);
-      return () => {};
-    }
+        setError(null);
+      },
+      (err) => {
+        console.error("Firebase connection error:", err);
+        setLoading(false);
+        // Map error to user friendly message
+        if (err.message && (err.message.includes('permission-denied') || (err as any).code === 'permission-denied')) {
+          setError('Permiso denegado: Revisa las Reglas de Seguridad en Firebase Console.');
+        } else {
+          setError(`Error de conexión: ${err.message}`);
+        }
+      }
+    );
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, []);
 
   // Recalculate inventory whenever transactions change
@@ -94,19 +96,31 @@ const App: React.FC = () => {
   }
 
   if (error) {
-     return (
+    return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white max-w-lg w-full p-8 rounded-xl shadow-lg border border-red-100 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertOctagon className="w-8 h-8 text-red-600" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Error de Conexión</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">No se pudo conectar a la base de datos</h2>
           <p className="text-red-600 font-medium mb-6">{error}</p>
+          
+          <div className="text-left bg-slate-50 p-4 rounded-lg text-sm text-slate-600 space-y-2 mb-6 border border-slate-200">
+            <p className="font-bold text-slate-800">Cómo solucionar (Consola Firebase):</p>
+            <ol className="list-decimal pl-5 space-y-1">
+              <li>Ve a <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-blue-600 underline">Firebase Console</a>.</li>
+              <li>Selecciona el proyecto: <strong>inventariomphgsc</strong>.</li>
+              <li>Ve a <strong>Firestore Database</strong> {'>'} pestaña <strong>Reglas</strong>.</li>
+              <li>Cambia a: <code>allow read, write: if true;</code></li>
+              <li>Haz clic en <strong>Publicar</strong>.</li>
+            </ol>
+          </div>
+          
           <button 
             onClick={() => window.location.reload()}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
-            Reintentar
+            Reintentar Conexión
           </button>
         </div>
       </div>

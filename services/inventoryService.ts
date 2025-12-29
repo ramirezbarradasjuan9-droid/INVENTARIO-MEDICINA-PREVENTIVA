@@ -15,26 +15,32 @@ const COLLECTION_NAME = 'transactions';
 
 // --- CLOUD FIRESTORE FUNCTIONS ---
 
-// Subscribe to real-time updates from Firestore
-export const subscribeToTransactions = (callback: (transactions: Transaction[]) => void) => {
+// Subscribe to real-time updates from Firestore with error handling
+export const subscribeToTransactions = (
+  onData: (transactions: Transaction[]) => void,
+  onError?: (error: Error) => void
+) => {
   const q = query(collection(db, COLLECTION_NAME), orderBy('date', 'desc'));
   
-  // onSnapshot sets up a listener that fires whenever the database changes
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const transactions: Transaction[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Transaction));
-    callback(transactions);
-  });
+  const unsubscribe = onSnapshot(q, 
+    (snapshot) => {
+      const transactions: Transaction[] = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Transaction));
+      onData(transactions);
+    },
+    (error) => {
+      console.error("Firestore subscription error:", error);
+      if (onError) onError(error);
+    }
+  );
 
-  // Return the unsubscribe function to clean up the listener
   return unsubscribe;
 };
 
 // Add a new transaction to the cloud
 export const saveTransaction = async (transaction: Transaction): Promise<void> => {
-  // We remove the ID because Firestore generates it automatically
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id, ...data } = transaction;
   
@@ -43,7 +49,7 @@ export const saveTransaction = async (transaction: Transaction): Promise<void> =
     materialName: data.materialName,
     batchNumber: data.batchNumber.trim().toUpperCase(),
     originOrDestination: data.originOrDestination.trim().toUpperCase(),
-    subtype: data.subtype || null, // Firestore prefers null over undefined
+    subtype: data.subtype || null,
     observations: data.observations || null
   };
 
@@ -75,13 +81,12 @@ export const deleteTransaction = async (id: string): Promise<void> => {
   await deleteDoc(doc(db, COLLECTION_NAME, id));
 };
 
-// --- UTILITY FUNCTIONS (Calculations run on the client) ---
+// --- UTILITY FUNCTIONS ---
 
 export const calculateInventory = (transactions: Transaction[]): InventoryItem[] => {
   const inventoryMap = new Map<string, { total: number, lastUpdate: string }>();
 
   transactions.forEach(tx => {
-    // Composite key for materials with subtypes (e.g., "Pruebas Rápidas - VIH")
     const key = tx.subtype ? `${tx.materialName} (${tx.subtype})` : tx.materialName;
     
     if (!inventoryMap.has(key)) {
@@ -96,7 +101,6 @@ export const calculateInventory = (transactions: Transaction[]): InventoryItem[]
       current.total -= tx.quantity;
     }
     
-    // Keep track of most recent activity
     if (new Date(tx.date) > new Date(current.lastUpdate)) {
       current.lastUpdate = tx.date;
     }
@@ -121,7 +125,7 @@ export const exportToCSV = (transactions: Transaction[]) => {
     t.batchNumber,
     t.originOrDestination,
     t.quantity,
-    `"${t.observations || ''}"` // Escape quotes
+    `"${t.observations || ''}"`
   ]);
 
   const csvContent = [

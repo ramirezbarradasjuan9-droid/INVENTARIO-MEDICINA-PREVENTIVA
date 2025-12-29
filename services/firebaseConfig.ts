@@ -16,6 +16,18 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar servicios
-export const analytics = getAnalytics(app);
+// Inicializar y exportar Firestore
 export const db = getFirestore(app);
+
+// Inicializar Analytics de forma segura
+// Usamos try-catch para evitar que un error en Analytics rompa toda la app
+let analyticsInstance = null;
+try {
+  if (typeof window !== 'undefined') {
+    analyticsInstance = getAnalytics(app);
+  }
+} catch (e) {
+  console.warn("Firebase Analytics no se pudo inicializar (posiblemente bloqueado por el entorno). La app continuará funcionando.", e);
+}
+
+export const analytics = analyticsInstance;

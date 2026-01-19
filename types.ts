@@ -7,7 +7,6 @@ export interface MaterialOption {
   id: string;
   name: string;
   hasSubtypes?: boolean;
-  subtypes?: string[];
 }
 
 export interface Transaction {

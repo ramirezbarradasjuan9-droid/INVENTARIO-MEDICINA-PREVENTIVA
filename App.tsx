@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  subscribeToTransactions, 
+  getTransactions, 
   saveTransaction, 
   updateTransaction, 
   deleteTransaction, 
@@ -10,7 +10,7 @@ import { Transaction, InventoryItem } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import TransactionForm from './components/TransactionForm';
-import { LayoutDashboard, List, PlusCircle, Activity, Cloud, Loader2, AlertOctagon } from 'lucide-react';
+import { LayoutDashboard, List, PlusCircle, Activity } from 'lucide-react';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'DASHBOARD' | 'HISTORY'>('DASHBOARD');
@@ -18,31 +18,13 @@ const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load data from Firebase on mount using real-time listener
+  // Load data on mount
   useEffect(() => {
-    const unsubscribe = subscribeToTransactions(
-      (data) => {
-        setTransactions(data);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error("Firebase connection error:", err);
-        setLoading(false);
-        // Map error to user friendly message
-        if (err.message && (err.message.includes('permission-denied') || (err as any).code === 'permission-denied')) {
-          setError('Permiso denegado: Revisa las Reglas de Seguridad en Firebase Console.');
-        } else {
-          setError(`Error de conexión: ${err.message}`);
-        }
-      }
-    );
-
-    // Cleanup listener on unmount
-    return () => unsubscribe();
+    const data = getTransactions();
+    // Sort by date descending
+    data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setTransactions(data);
   }, []);
 
   // Recalculate inventory whenever transactions change
@@ -51,81 +33,28 @@ const App: React.FC = () => {
     setInventory(inv);
   }, [transactions]);
 
-  const handleCreateTransaction = async (t: Transaction) => {
-    try {
-      await saveTransaction(t);
-      setShowForm(false);
-    } catch (e: any) {
-      alert("Error al guardar: " + e.message);
-    }
+  const handleCreateTransaction = (t: Transaction) => {
+    const updated = saveTransaction(t);
+    setTransactions(updated);
+    setShowForm(false);
   };
 
-  const handleUpdateTransaction = async (t: Transaction) => {
-    try {
-      await updateTransaction(t);
-      setShowForm(false);
-      setEditingTransaction(null);
-    } catch (e: any) {
-      alert("Error al actualizar: " + e.message);
-    }
+  const handleUpdateTransaction = (t: Transaction) => {
+    const updated = updateTransaction(t);
+    setTransactions(updated);
+    setShowForm(false);
+    setEditingTransaction(null);
   };
 
-  const handleDeleteTransaction = async (id: string) => {
-    try {
-      await deleteTransaction(id);
-    } catch (e: any) {
-      alert("Error al eliminar: " + e.message);
-    }
+  const handleDeleteTransaction = (id: string) => {
+    const updated = deleteTransaction(id);
+    setTransactions(updated);
   };
 
   const startEditing = (t: Transaction) => {
     setEditingTransaction(t);
     setShowForm(true);
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-slate-700">Conectando con inventariomphgsc...</h2>
-          <p className="text-slate-500 text-sm">Cargando inventario en tiempo real</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white max-w-lg w-full p-8 rounded-xl shadow-lg border border-red-100 text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertOctagon className="w-8 h-8 text-red-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">No se pudo conectar a la base de datos</h2>
-          <p className="text-red-600 font-medium mb-6">{error}</p>
-          
-          <div className="text-left bg-slate-50 p-4 rounded-lg text-sm text-slate-600 space-y-2 mb-6 border border-slate-200">
-            <p className="font-bold text-slate-800">Cómo solucionar (Consola Firebase):</p>
-            <ol className="list-decimal pl-5 space-y-1">
-              <li>Ve a <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-blue-600 underline">Firebase Console</a>.</li>
-              <li>Selecciona el proyecto: <strong>inventariomphgsc</strong>.</li>
-              <li>Ve a <strong>Firestore Database</strong> {'>'} pestaña <strong>Reglas</strong>.</li>
-              <li>Cambia a: <code>allow read, write: if true;</code></li>
-              <li>Haz clic en <strong>Publicar</strong>.</li>
-            </ol>
-          </div>
-          
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            Reintentar Conexión
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex bg-slate-50">
@@ -167,13 +96,7 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">
-          <div className="flex items-center justify-center gap-1 mb-2 text-green-400">
-            <Cloud size={12} />
-            <span>Conectado a Nube</span>
-          </div>
-          v2.2.1 Cloud - Medicina Prev.
-          <div className="mt-1 opacity-50">Ref: 825147498372</div>
-          <div className="mt-0.5 opacity-30 text-[10px]">ID: inventariomphgsc</div>
+          v1.0.0 - Dpto. Medicina Preventiva
         </div>
       </aside>
 
@@ -203,7 +126,7 @@ const App: React.FC = () => {
         {/* Top Bar for Desktop */}
         <header className="hidden md:flex justify-between items-center p-6 bg-white border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-800">
-            {view === 'DASHBOARD' ? 'Panel General' : 'Historial y Registros'}
+            {view === 'DASHBOARD' ? 'Resumen de Inventario' : 'Historial de Movimientos'}
           </h2>
           <button
             onClick={() => {

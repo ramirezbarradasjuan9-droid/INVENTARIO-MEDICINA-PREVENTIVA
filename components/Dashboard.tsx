@@ -1,7 +1,7 @@
 import React from 'react';
 import { InventoryItem } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { Package, AlertTriangle, Activity, CalendarClock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Package, AlertTriangle, Activity } from 'lucide-react';
 
 interface DashboardProps {
   inventory: InventoryItem[];
@@ -91,77 +91,6 @@ const Dashboard: React.FC<DashboardProps> = ({ inventory }) => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Consolidated Inventory Report */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Package className="w-5 h-5 text-slate-500" />
-            Reporte Detallado de Existencias
-          </h3>
-          <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">
-            {inventory.length} Insumos Registrados
-          </span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 w-1/2">Material / Insumo</th>
-                <th className="px-6 py-3">Estado</th>
-                <th className="px-6 py-3">Último Movimiento</th>
-                <th className="px-6 py-3 text-right">Stock Actual</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {inventory.length === 0 ? (
-                 <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">
-                      No hay inventario registrado aún.
-                    </td>
-                 </tr>
-              ) : (
-                inventory.map((item, index) => {
-                  const isLowStock = item.totalQuantity < 10;
-                  return (
-                    <tr key={index} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-800">
-                        {item.materialName}
-                      </td>
-                      <td className="px-6 py-4">
-                        {isLowStock ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            Stock Crítico
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Disponible
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 flex items-center gap-2">
-                        <CalendarClock className="w-4 h-4 text-slate-400" />
-                        {new Date(item.lastUpdated).toLocaleDateString()}
-                        <span className="text-xs text-slate-400">
-                          {new Date(item.lastUpdated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className={`text-lg font-bold ${isLowStock ? 'text-red-600' : 'text-slate-700'}`}>
-                          {item.totalQuantity}
-                        </span>
-                        <span className="text-xs text-slate-400 ml-1">unid.</span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

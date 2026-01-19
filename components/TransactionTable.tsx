@@ -18,14 +18,11 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, onEdi
   const filteredData = useMemo(() => {
     return transactions.filter(t => {
       // 1. Filter by Search Term
-      const lowerSearch = searchTerm.toLowerCase();
       const matchesSearch = 
-        t.materialName.toLowerCase().includes(lowerSearch) ||
-        t.batchNumber.toLowerCase().includes(lowerSearch) ||
-        t.originOrDestination.toLowerCase().includes(lowerSearch) ||
-        (t.subtype && t.subtype.toLowerCase().includes(lowerSearch)) ||
-        (t.observations && t.observations.toLowerCase().includes(lowerSearch)) ||
-        t.quantity.toString().includes(lowerSearch);
+        t.materialName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.originOrDestination.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (t.subtype && t.subtype.toLowerCase().includes(searchTerm.toLowerCase()));
       
       // 2. Filter by Type
       const matchesType = filterType === 'ALL' || t.type === filterType;
@@ -72,7 +69,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, onEdi
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Buscar (Lote, Cantidad, Obs...)"
+              placeholder="Buscar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -184,11 +181,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, onEdi
                   <td className="px-6 py-3 font-medium text-slate-800">
                     {t.materialName}
                     {t.subtype && <span className="block text-xs text-slate-500 font-normal mt-0.5">{t.subtype}</span>}
-                    {t.observations && (
-                       <span className="block text-xs text-slate-400 italic mt-1 max-w-[200px] truncate" title={t.observations}>
-                         {t.observations}
-                       </span>
-                    )}
                   </td>
                   <td className="px-6 py-3 font-mono text-xs text-slate-600 bg-slate-50 px-2 rounded w-fit">{t.batchNumber}</td>
                   <td className="px-6 py-3 text-slate-600 max-w-xs truncate" title={t.originOrDestination}>

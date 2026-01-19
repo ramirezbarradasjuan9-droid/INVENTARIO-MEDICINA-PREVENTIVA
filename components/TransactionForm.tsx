@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { MATERIALS } from '../constants';
+import React, { useState, useEffect } from 'react';
+import { MATERIALS, RAPID_TEST_TYPES } from '../constants';
 import { TransactionType, Transaction } from '../types';
-import { Save, X, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Save, X, AlertTriangle } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 
 interface TransactionFormProps {
   onSubmit: (transaction: Transaction) => void;
@@ -32,42 +33,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, i
     }
   }, [initialData]);
 
-  // Detectar si hay cambios sin guardar comparando con el estado inicial
-  const isDirty = useMemo(() => {
-    if (initialData) {
-      const initialMat = MATERIALS.find(m => m.name === initialData.materialName);
-      return (
-        type !== initialData.type ||
-        materialId !== (initialMat ? initialMat.id : '') ||
-        subtype !== (initialData.subtype || '') ||
-        batchNumber !== initialData.batchNumber ||
-        originOrDestination !== initialData.originOrDestination ||
-        quantity !== initialData.quantity.toString() ||
-        observations !== (initialData.observations || '')
-      );
-    }
-    // Para nuevos registros, dirty si algún campo tiene valor
-    return (
-      type !== TransactionType.INGRESO ||
-      materialId !== '' ||
-      subtype !== '' ||
-      batchNumber !== '' ||
-      originOrDestination !== '' ||
-      quantity !== '' ||
-      observations !== ''
-    );
-  }, [type, materialId, subtype, batchNumber, originOrDestination, quantity, observations, initialData]);
-
-  const handleBack = () => {
-    if (isDirty) {
-      if (window.confirm('Tiene cambios sin guardar. ¿Desea descartarlos y volver?')) {
-        onCancel();
-      }
-    } else {
-      onCancel();
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -79,7 +44,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, i
     }
 
     if (material.hasSubtypes && !subtype) {
-      setError('Seleccione la especificación o subtipo del material.');
+      setError('Seleccione el tipo de prueba rápida.');
       return;
     }
 
@@ -88,26 +53,21 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, i
       return;
     }
 
-    // Validación: Lote alfanumérico
+    // Validación: Lote alfanumérico (letras, números y guiones)
     const batchRegex = /^[a-zA-Z0-9-]+$/;
     if (!batchRegex.test(batchNumber.trim())) {
       setError('El lote debe ser alfanumérico (solo letras, números y guiones, sin espacios).');
       return;
     }
 
-    // Validación de Cantidad
-    const qty = parseInt(quantity, 10);
-    if (!quantity || isNaN(qty) || qty <= 0) {
-      setError('Error: La cantidad debe ser un número mayor a 0.');
+    if (!originOrDestination.trim()) {
+      setError(type === TransactionType.INGRESO ? 'La procedencia es obligatoria.' : 'El destino es obligatorio.');
       return;
     }
 
-    // Validación de Procedencia / Destino
-    if (!originOrDestination.trim()) {
-      const msg = type === TransactionType.INGRESO 
-        ? 'Error: Debe especificar la Procedencia (Origen) del material.' 
-        : 'Error: Debe especificar el Destino (Área/Paciente) del material.';
-      setError(msg);
+    const qty = parseInt(quantity, 10);
+    if (isNaN(qty) || qty <= 0) {
+      setError('La cantidad debe ser un número positivo.');
       return;
     }
 
@@ -128,83 +88,60 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, i
 
   const selectedMaterial = MATERIALS.find(m => m.id === materialId);
 
-  // Estilos base para inputs
-  const baseInputClass = "w-full px-3 py-2 border rounded-lg outline-none transition-all bg-white text-slate-800 placeholder-slate-400";
-  const defaultBorderClass = "border-slate-300 focus:ring-2 focus:ring-blue-500";
-  const errorBorderClass = "border-red-300 focus:ring-2 focus:ring-red-500 bg-red-50";
-
-  // Función auxiliar para determinar si un campo tiene error visual
-  const hasError = (keywords: string[]) => {
-    if (!error) return false;
-    return keywords.some(k => error.toLowerCase().includes(k));
-  };
-
-  const getInputClass = (keywords: string[] = []) => 
-    `${baseInputClass} ${keywords.length > 0 && hasError(keywords) ? errorBorderClass : defaultBorderClass}`;
-
-  const labelClass = "block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide";
+  // Clase común para inputs más claros y limpios
+  const inputClass = "w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-400";
 
   return (
-    <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-slate-200">
-      <div className="bg-slate-900 px-6 py-4 flex justify-between items-center">
-        <h3 className="text-white font-bold text-lg flex items-center">
+    <div className="bg-white p-8 rounded-xl shadow-xl border border-slate-100">
+      <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
+        <h2 className="text-2xl font-bold text-slate-800">
           {initialData ? 'Editar Registro' : 'Nuevo Movimiento'}
-        </h3>
-        <button onClick={handleBack} className="text-slate-400 hover:text-white transition-colors">
+        </h2>
+        <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors">
           <X size={24} />
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg flex items-center text-sm border border-red-200 animate-pulse">
-            <AlertTriangle size={18} className="mr-2 flex-shrink-0" />
-            {error}
-          </div>
-        )}
-
-        {/* Tipo de Transacción */}
-        <div>
-          <label className={labelClass}>Tipo de Movimiento</label>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              type="button"
-              onClick={() => setType(TransactionType.INGRESO)}
-              className={`py-3 rounded-lg border-2 font-medium transition-all ${
-                type === TransactionType.INGRESO
-                  ? 'border-green-500 bg-green-50 text-green-700'
-                  : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
-              }`}
-            >
-              ENTRADA (Ingreso)
-            </button>
-            <button
-              type="button"
-              onClick={() => setType(TransactionType.SALIDA)}
-              className={`py-3 rounded-lg border-2 font-medium transition-all ${
-                type === TransactionType.SALIDA
-                  ? 'border-red-500 bg-red-50 text-red-700'
-                  : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
-              }`}
-            >
-              SALIDA (Egreso)
-            </button>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Transaction Type Switch */}
+        <div className="flex p-1.5 bg-slate-50 rounded-xl border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setType(TransactionType.INGRESO)}
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+              type === TransactionType.INGRESO
+                ? 'bg-white text-green-700 shadow-sm border border-slate-100'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            INGRESO (Entrada)
+          </button>
+          <button
+            type="button"
+            onClick={() => setType(TransactionType.SALIDA)}
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+              type === TransactionType.SALIDA
+                ? 'bg-white text-red-700 shadow-sm border border-slate-100'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            SALIDA (Entrega)
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Material */}
+          {/* Material Selection */}
           <div>
-            <label className={labelClass}>Material</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Material</label>
             <select
               value={materialId}
               onChange={(e) => {
                 setMaterialId(e.target.value);
                 setSubtype('');
               }}
-              className={getInputClass(['material'])}
+              className={inputClass}
             >
-              <option value="">-- Seleccionar Material --</option>
+              <option value="">Seleccionar Material...</option>
               {MATERIALS.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -213,116 +150,110 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, i
             </select>
           </div>
 
-          {/* Subtipo (Dinamico basado en configuración del material) */}
-          {selectedMaterial?.hasSubtypes && selectedMaterial.subtypes && (
-            <div>
-              <label className={labelClass}>Tipo / Especificación</label>
-              <select
-                value={subtype}
-                onChange={(e) => setSubtype(e.target.value)}
-                className={getInputClass(['tipo', 'prueba', 'especificación'])}
-              >
-                <option value="">-- Seleccionar --</option>
-                {selectedMaterial.subtypes.map((t) => (
+          {/* Subtype Selection (Conditional) */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              {selectedMaterial?.hasSubtypes ? 'Tipo de Reactivo' : 'Subtipo'}
+            </label>
+            <select
+              value={subtype}
+              onChange={(e) => setSubtype(e.target.value)}
+              disabled={!selectedMaterial?.hasSubtypes}
+              className={`${inputClass} ${!selectedMaterial?.hasSubtypes ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : ''}`}
+            >
+              <option value="">{selectedMaterial?.hasSubtypes ? 'Seleccionar Tipo...' : 'N/A'}</option>
+              {selectedMaterial?.hasSubtypes &&
+                RAPID_TEST_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
                 ))}
-              </select>
-            </div>
-          )}
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Lote */}
+          {/* Batch Number */}
           <div>
-            <label className={labelClass}>Número de Lote</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Lote (Batch)</label>
             <input
               type="text"
               value={batchNumber}
-              onChange={(e) => setBatchNumber(e.target.value.toUpperCase())}
-              placeholder="Ej. A123-B"
-              className={getInputClass(['lote', 'alfanumérico'])}
+              onChange={(e) => setBatchNumber(e.target.value)}
+              placeholder="Ej. B2309-X"
+              className={`${inputClass} uppercase`}
             />
+            <p className="text-xs text-slate-400 mt-1 ml-1">Solo letras, números y guiones</p>
           </div>
 
-          {/* Cantidad */}
+          {/* Quantity */}
           <div>
-            <label className={labelClass}>Cantidad</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Cantidad</label>
             <input
               type="number"
               min="1"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
+              className={inputClass}
               placeholder="0"
-              className={getInputClass(['cantidad', 'número'])}
             />
           </div>
         </div>
 
-        {/* Procedencia / Destino - Renderizado Condicional */}
-        {type === TransactionType.INGRESO ? (
-          <div>
-            <label className={labelClass}>Procedencia (Origen)</label>
-            <input
-              type="text"
-              value={originOrDestination}
-              onChange={(e) => setOriginOrDestination(e.target.value)}
-              placeholder="Ej. Almacén General"
-              className={getInputClass(['procedencia', 'origen'])}
-            />
-          </div>
-        ) : (
-          <div>
-            <label className={labelClass}>Destino (Área/Paciente)</label>
-            <input
-              type="text"
-              value={originOrDestination}
-              onChange={(e) => setOriginOrDestination(e.target.value)}
-              placeholder="Ej. Consulta Externa 1"
-              className={getInputClass(['destino'])}
-            />
-          </div>
-        )}
-
-        {/* Observaciones */}
+        {/* Origin / Destination */}
         <div>
-          <label className={labelClass}>Observaciones</label>
-          <textarea
-            value={observations}
-            onChange={(e) => setObservations(e.target.value)}
-            placeholder="Detalles adicionales..."
-            className={getInputClass()}
-            rows={3}
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            {type === TransactionType.INGRESO ? 'Procedencia (Proveedor/Origen)' : 'Destino (Área/Persona)'}
+          </label>
+          <input
+            type="text"
+            value={originOrDestination}
+            onChange={(e) => setOriginOrDestination(e.target.value)}
+            placeholder={type === TransactionType.INGRESO ? 'Ej. Almacén Central' : 'Ej. Consultorio 3'}
+            className={`${inputClass} uppercase`}
           />
         </div>
 
-        {/* Footer de Botones */}
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
+        {/* Observations */}
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Observaciones</label>
+          <textarea
+            value={observations}
+            onChange={(e) => setObservations(e.target.value)}
+            rows={2}
+            className={`${inputClass} resize-none`}
+            placeholder="Detalles adicionales..."
+          ></textarea>
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-100 text-red-700 text-sm rounded-lg flex items-center animate-pulse">
+            <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+
+        <div className="flex justify-end pt-6 border-t border-slate-100 mt-6">
           <button
             type="button"
-            onClick={handleBack}
-            className="px-4 py-2 text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium flex items-center"
-            title="Volver al listado"
+            onClick={onCancel}
+            className="px-6 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-lg mr-3 transition-colors font-medium"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
             Volver
           </button>
-          
           <button
             type="button"
-            onClick={handleBack}
-            className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm"
+            onClick={onCancel}
+            className="px-6 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-lg mr-3 transition-colors font-medium"
           >
             Cancelar
           </button>
-
           <button
             type="submit"
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center font-medium"
+            className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg flex items-center transition-all font-medium"
           >
-            <Save className="w-4 h-4 mr-2" />
-            Guardar Registro
+            <Save className="w-5 h-5 mr-2" />
+            {initialData ? 'Actualizar Registro' : 'Guardar Movimiento'}
           </button>
         </div>
       </form>
